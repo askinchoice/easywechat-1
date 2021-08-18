@@ -57,6 +57,48 @@ class BaseClientTest extends TestCase
         $this->assertSame('response-content', $client->request($api, $params, $method, $options, true)->getBodyContents());
     }
 
+    public function testRequestToV3()
+    {
+        $app = new Application([
+            'mch_id' => 'foo',
+            'brand_mchid' => 'bar',
+            'sub_mch_id' => 'wx123456',
+            'sub_appid' => 'wx12',
+        ]);
+
+        $client = $this->mockApiClient(BaseClient::class, ['performRequest', 'castResponseToType'], $app)->makePartial();
+
+        $api = 'http://easywechat.org';
+        $params = ['foo' => 'bar'];
+        $method = \Mockery::anyOf(['get', 'post']);
+        $options = ['foo' => 'bar'];
+
+        $mockResponse = new Response(200, [], 'response-content');
+
+        $client->expects()->performRequest($api, $method, \Mockery::on(function ($options) {
+            $this->assertSame('bar', $options['foo']);
+            $this->assertIsArray($options['body']);
+
+            $this->assertSame('foo', $options['body']['mch_id']);
+            $this->assertSame('bar', $options['body']['brand_mchid']);
+            $this->assertSame('wx123456', $options['body']['sub_mch_id']);
+            $this->assertSame('wx12', $options['body']['sub_appid']);
+
+            return true;
+        }))->times(3)->andReturn($mockResponse);
+
+        $client->expects()->castResponseToType()
+            ->with($mockResponse, \Mockery::any())
+            ->andReturn(['foo' => 'mock-bar']);
+
+        // $returnResponse = false
+        $this->assertSame(['foo' => 'mock-bar'], $client->requestToV3($api, $params, $method, $options, false));
+
+        // $returnResponse = true
+        $this->assertInstanceOf(Response::class, $client->requestToV3($api, $params, $method, $options, true));
+        $this->assertSame('response-content', $client->requestToV3($api, $params, $method, $options, true)->getBodyContents());
+    }
+
     public function testRequestRaw()
     {
         $app = new Application();

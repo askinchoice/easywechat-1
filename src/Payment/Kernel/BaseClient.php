@@ -13,10 +13,12 @@ namespace EasyWeChat\Payment\Kernel;
 
 use EasyWeChat\Kernel\Support;
 use EasyWeChat\Kernel\Traits\HasHttpRequests;
+use EasyWeChat\Kernel\Traits\InteractsWithV3Api;
 use EasyWeChat\Payment\Application;
 use GuzzleHttp\MessageFormatter;
 use GuzzleHttp\Middleware;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\RequestInterface;
 
 /**
  * Class BaseClient.
@@ -25,7 +27,7 @@ use Psr\Http\Message\ResponseInterface;
  */
 class BaseClient
 {
-    use HasHttpRequests { request as performRequest; }
+    use InteractsWithV3Api, HasHttpRequests { request as performRequest; }
 
     /**
      * @var \EasyWeChat\Payment\Application
@@ -98,6 +100,45 @@ class BaseClient
     }
 
     /**
+     * Make a request to V3 API.
+     *
+     * @param string $endpoint
+     * @param array  $params
+     * @param string $method
+     * @param array  $options
+     * @param bool   $returnResponse
+     *
+     * @return \Psr\Http\Message\ResponseInterface|\EasyWeChat\Kernel\Support\Collection|array|object|string
+     *
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    protected function requestToV3(string $endpoint, array $params = [], $method = 'post', array $options = [], $returnResponse = false)
+    {
+        $base = [
+            'mch_id' => $this->app['config']['mch_id'],
+            'brand_mchid' => $this->app['config']['brand_mchid'],
+            'sub_mch_id' => $this->app['config']['sub_mch_id'],
+            'sub_appid' => $this->app['config']['sub_appid'],
+        ];
+
+        $params = array_filter(array_merge($base, $this->prepends(), $params), 'strlen');
+
+        $options = array_merge([
+            'body' => $params,
+        ], $options);
+
+        $this->pushMiddleware($this->logMiddleware(), 'log');
+
+        $this->pushMiddleware($this->AuthorizedV3Middleware(), 'wechat_authorized');
+
+        $response = $this->performRequest($endpoint, $method, $options);
+
+        return $returnResponse ? $response : $this->castResponseToType($response, $this->app->config->get('response_type'));
+    }
+
+    /**
      * Log the request.
      *
      * @return \Closure
@@ -107,6 +148,29 @@ class BaseClient
         $formatter = new MessageFormatter($this->app['config']['http.log_template'] ?? MessageFormatter::DEBUG);
 
         return Middleware::log($this->app['logger'], $formatter);
+    }
+
+    /**
+     * Authorize the request.
+     *
+     * @return \Closure
+     */
+    protected function AuthorizedV3Middleware()
+    {
+        $timestamp = time();
+
+        $nonceStr = uniqid();
+
+        return Middleware::mapRequest(fn (RequestInterface $request) => $request->withHeader('Authorization', $this->generateToken(
+            $this->app['config']['mch_id'],
+            $nonceStr,
+            $timestamp,
+            $this->app['config']['serial_no'],
+            Support\sha256_rsa_with_private_encrypt(
+                $this->getContents($request, $timestamp, $nonceStr),
+                openssl_pkey_get_private('file://'.$this->app['config']['v3_key_path'])
+            ),
+        )));
     }
 
     /**

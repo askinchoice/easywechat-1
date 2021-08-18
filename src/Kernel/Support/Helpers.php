@@ -129,3 +129,17 @@ function rsa_public_encrypt($content, $publicKey)
 
     return base64_encode($encrypted);
 }
+
+/**
+ * @param string $content
+ * @param \OpenSSLAsymmetricKey|string $privateKey
+ *
+ * @return string
+ */
+function sha256_rsa_with_private_encrypt(string $content, \OpenSSLAsymmetricKey | string $privateKey)
+{
+    $encrypted = '';
+    openssl_sign($content, $encrypted, $privateKey, 'sha256WithRSAEncryption');
+
+    return base64_encode($encrypted);
+}
