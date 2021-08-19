@@ -31,7 +31,7 @@ class Client extends BaseClient
     }
 
     /**
-     * Multi profit sharing.
+     * Profit sharing.
      * 请求分账.
      *
      * @param string $transactionId 微信支付订单号
@@ -59,7 +59,7 @@ class Client extends BaseClient
             'finish' => $finish,
         ];
 
-        return $this->safeRequest(
+        return $this->requestToV3(
             'v3/brand/profitsharing/orders',
             $params
         );

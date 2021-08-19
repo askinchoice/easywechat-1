@@ -30,11 +30,11 @@ class ClientTest extends TestCase
     {
         $client = $this->mockApiClient(
             Client::class,
-            ['safeRequest'],
+            ['requestToV3'],
             $this->app()
         );
 
-        $client->expects()->safeRequest(
+        $client->expects()->requestToV3(
             'v3/brand/profitsharing/orders',
             [
                 'appid' => 'wx123456',
