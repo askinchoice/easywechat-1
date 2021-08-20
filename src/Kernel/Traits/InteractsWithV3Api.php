@@ -57,15 +57,10 @@ trait InteractsWithV3Api
      */
     public function getContents(RequestInterface $request, string $timestamp, string $nonceStr)
     {
-        $body = match (strtoupper($request->getMethod())) {
-            default => '',
-            'POST','PUT' => json_encode($request->getBody(), JSON_UNESCAPED_UNICODE),
-        };
-
         return $request->getMethod()."\n".
             $request->getRequestTarget()."\n".
             $timestamp."\n".
             $nonceStr."\n".
-            $body."\n";
+            $request->getBody()."\n";
     }
 }

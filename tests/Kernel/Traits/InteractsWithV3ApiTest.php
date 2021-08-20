@@ -44,9 +44,9 @@ class InteractsWithV3ApiTest extends TestCase
         $cls = new DummyClassForInteractsWithV3ApiTest();
         $request = \Mockery::mock(RequestInterface::class);
 
-        $request->expects()->getMethod()->times(2)->andReturn('POST');
-        $request->expects()->getRequestTarget()->andReturn('api/v3/foobar');
-        $request->expects()->getBody()->andReturn(['foo' => 'bar']);
+        $request->expects()->getMethod()->andReturn('POST');
+        $request->expects()->getRequestTarget()->times(3)->andReturn('api/v3/foobar');
+        $request->expects()->getBody()->times(2)->andReturn(json_encode(['foo' => 'bar']));
         $nonceStr = uniqid();
         $timestamp = time();
 
@@ -56,6 +56,29 @@ class InteractsWithV3ApiTest extends TestCase
             $timestamp."\n".
             $nonceStr."\n".
             json_encode(['foo' => 'bar'])."\n",
+            $cls->getContents($request, $timestamp, $nonceStr)
+        );
+
+        $request->expects()->getMethod()->andReturn('PUT');
+
+        $this->assertSame(
+            "PUT\n".
+            "api/v3/foobar\n".
+            $timestamp."\n".
+            $nonceStr."\n".
+            json_encode(['foo' => 'bar'])."\n",
+            $cls->getContents($request, $timestamp, $nonceStr)
+        );
+
+        $request->expects()->getMethod()->andReturn('GET');
+        $request->expects()->getBody()->andReturn('');
+
+        $this->assertSame(
+            "GET\n".
+            "api/v3/foobar\n".
+            $timestamp."\n".
+            $nonceStr."\n".
+            "\n",
             $cls->getContents($request, $timestamp, $nonceStr)
         );
     }
