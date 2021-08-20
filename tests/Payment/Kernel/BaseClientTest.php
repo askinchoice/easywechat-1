@@ -60,8 +60,6 @@ class BaseClientTest extends TestCase
     public function testRequestToV3()
     {
         $app = new Application([
-            'mch_id' => 'foo',
-            'brand_mchid' => 'bar',
             'sub_mch_id' => 'wx123456',
             'sub_appid' => 'wx12',
         ]);
@@ -77,12 +75,10 @@ class BaseClientTest extends TestCase
 
         $client->expects()->performRequest($api, $method, \Mockery::on(function ($options) {
             $this->assertSame('bar', $options['foo']);
-            $this->assertIsArray($options['body']);
+            $this->assertIsArray($options['json']);
 
-            $this->assertSame('foo', $options['body']['mch_id']);
-            $this->assertSame('bar', $options['body']['brand_mchid']);
-            $this->assertSame('wx123456', $options['body']['sub_mch_id']);
-            $this->assertSame('wx12', $options['body']['sub_appid']);
+            $this->assertSame('wx123456', $options['json']['sub_mchid']);
+            $this->assertSame('wx12', $options['json']['sub_appid']);
 
             return true;
         }))->times(3)->andReturn($mockResponse);

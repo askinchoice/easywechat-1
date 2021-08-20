@@ -26,7 +26,7 @@ class Client extends BaseClient
     protected function prepends()
     {
         return [
-            'sign_type' => 'HMAC-SHA256',
+            'brand_mchid' => $this->app['config']['brand_mchid']
         ];
     }
 

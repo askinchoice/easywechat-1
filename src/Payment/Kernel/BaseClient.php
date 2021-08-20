@@ -117,21 +117,21 @@ class BaseClient
     protected function requestToV3(string $endpoint, array $params = [], $method = 'post', array $options = [], $returnResponse = false)
     {
         $base = [
-            'mch_id' => $this->app['config']['mch_id'],
-            'brand_mchid' => $this->app['config']['brand_mchid'],
-            'sub_mch_id' => $this->app['config']['sub_mch_id'],
+            'sub_mchid' => $this->app['config']['sub_mch_id'],
             'sub_appid' => $this->app['config']['sub_appid'],
         ];
 
-        $params = array_filter(array_merge($base, $this->prepends(), $params), 'strlen');
+        $params = array_filter(array_merge($base, $this->prepends(), $params), fn ($item) => !is_null($item) && $item !== '');
 
         $options = array_merge([
-            'body' => $params,
+            'json' => $params,
         ], $options);
 
-        $this->pushMiddleware($this->logMiddleware(), 'log');
+        $this->pushMiddleware($this->setClientHeaders(), 'client_headers');
 
         $this->pushMiddleware($this->AuthorizedV3Middleware(), 'wechat_authorized');
+
+        $this->pushMiddleware($this->logMiddleware(), 'log');
 
         $response = $this->performRequest($endpoint, $method, $options);
 
@@ -148,6 +148,21 @@ class BaseClient
         $formatter = new MessageFormatter($this->app['config']['http.log_template'] ?? MessageFormatter::DEBUG);
 
         return Middleware::log($this->app['logger'], $formatter);
+    }
+
+    /**
+     * Set client headers.
+     *
+     * @return \Closure
+     */
+    protected function setClientHeaders()
+    {
+        return Middleware::mapRequest(
+            fn (RequestInterface $request) => $request
+            ->withHeader('Accept', 'application/json, text/plain, application/x-gzip')
+            ->withHeader('User-Agent', 'overtrue/wechat')
+            ->withHeader('Content-Type', 'application/json; charset=utf-8')
+        );
     }
 
     /**
