@@ -12,6 +12,7 @@
 namespace EasyWeChat\Kernel\Traits;
 
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Trait InteractsWithV3Api.
@@ -62,5 +63,36 @@ trait InteractsWithV3Api
             $timestamp."\n".
             $nonceStr."\n".
             $request->getBody()."\n";
+    }
+
+    /**
+     * Validate V3 wechat signature.
+     *
+     * @param ResponseInterface $response
+     *
+     * @return bool
+     */
+    public function validateWechatSignature(ResponseInterface $response)
+    {
+        $signature = $response->getHeaderLine('Wechatpay-Signature');
+        $timestamp = $response->getHeaderLine('Wechatpay-Timestamp');
+        $nonceStr = $response->getHeaderLine('Wechatpay-Nonce');
+
+        if (!isset($signature, $timestamp, $nonceStr)) {
+            return false;
+        }
+
+        $body = $response->getBody()->getContents();
+
+        $content = $timestamp."\n".
+            $nonceStr."\n".
+            $body;
+
+        return 1 === \openssl_verify(
+            $content,
+            \base64_decode($signature),
+            \openssl_pkey_get_public('file://'.$this->app['config']['v3_cert_path']) ?: '',
+            'sha256WithRSAEncryption'
+        );
     }
 }

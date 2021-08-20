@@ -11,9 +11,11 @@
 
 namespace EasyWeChat\Tests\Kernel\Traits;
 
+use EasyWeChat\Kernel\ServiceContainer;
 use EasyWeChat\Kernel\Traits\InteractsWithV3Api;
 use EasyWeChat\Tests\TestCase;
 use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 
 class InteractsWithV3ApiTest extends TestCase
 {
@@ -82,9 +84,33 @@ class InteractsWithV3ApiTest extends TestCase
             $cls->getContents($request, $timestamp, $nonceStr)
         );
     }
+
+    public function testValidateWechatSignature()
+    {
+        $certPath = \STUBS_ROOT.'/files/public-wx123456.pem';
+        $app = new ServiceContainer([
+            'v3_cert_path' => $certPath,
+        ]);
+
+        $cls = new DummyClassForInteractsWithV3ApiTest($app);
+
+        $response = \Mockery::mock(ResponseInterface::class);
+
+        $response->expects()->getHeaderLine('Wechatpay-Signature')->andReturn(\base64_encode('signature'));
+        $response->expects()->getHeaderLine('Wechatpay-Timestamp')->andReturn('1629414003');
+        $response->expects()->getHeaderLine('Wechatpay-Nonce')->andReturn('nonceStr');
+        $response->shouldReceive('getBody->getContents')->andReturn(json_encode(['foo' => 'bar']));
+
+        $this->assertFalse($cls->validateWechatSignature($response));
+    }
 }
 
 class DummyClassForInteractsWithV3ApiTest
 {
     use InteractsWithV3Api;
+
+    public function __construct(ServiceContainer $app = null)
+    {
+        $this->app = $app;
+    }
 }
