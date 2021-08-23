@@ -60,11 +60,13 @@ trait InteractsWithV3Api
      */
     public function getContents(RequestInterface $request, string $timestamp, string $nonceStr)
     {
-        return $request->getMethod()."\n".
+        $method = $request->getMethod();
+
+        return $method."\n".
             $request->getRequestTarget()."\n".
             $timestamp."\n".
             $nonceStr."\n".
-            $request->getBody()."\n";
+            (strtoupper($method) === "GET" ? "" : $request->getBody())."\n";
     }
 
     /**

@@ -75,7 +75,6 @@ class InteractsWithV3ApiTest extends TestCase
         );
 
         $request->expects()->getMethod()->andReturn('GET');
-        $request->expects()->getBody()->andReturn('');
 
         $this->assertSame(
             "GET\n".
