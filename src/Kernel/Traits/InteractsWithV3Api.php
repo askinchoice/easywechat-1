@@ -11,6 +11,8 @@
 
 namespace EasyWeChat\Kernel\Traits;
 
+use EasyWeChat\Kernel\Exceptions\DecryptException;
+use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -70,7 +72,8 @@ trait InteractsWithV3Api
      *
      * @param ResponseInterface $response
      *
-     * @return bool
+     * @throws InvalidArgumentException
+     * @throws DecryptException
      */
     public function validateWechatSignature(ResponseInterface $response)
     {
@@ -79,7 +82,7 @@ trait InteractsWithV3Api
         $nonceStr = $response->getHeaderLine('Wechatpay-Nonce');
 
         if (!isset($signature, $timestamp, $nonceStr)) {
-            return false;
+            throw new InvalidArgumentException(sprintf("The Response doesn't contains signature."));
         }
 
         $body = $response->getBody()->getContents();
@@ -88,11 +91,13 @@ trait InteractsWithV3Api
             $nonceStr."\n".
             $body;
 
-        return 1 === \openssl_verify(
+        if (1 !== \openssl_verify(
             $content,
             \base64_decode($signature),
             \openssl_pkey_get_public('file://'.$this->app['config']['v3_cert_path']) ?: '',
             'sha256WithRSAEncryption'
-        );
+        )) {
+            throw new DecryptException('The given payload is invalid.');
+        }
     }
 }

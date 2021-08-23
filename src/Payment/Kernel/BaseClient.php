@@ -112,6 +112,7 @@ class BaseClient
      *
      * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\DecryptException
      * @throws \GuzzleHttp\Exception\GuzzleException
      */
     protected function requestToV3(string $endpoint, array $params = [], $method = 'post', array $options = [], $returnResponse = false)
@@ -129,7 +130,9 @@ class BaseClient
 
         $this->pushMiddleware($this->setClientHeaders(), 'client_headers');
 
-        $this->pushMiddleware($this->AuthorizedV3Middleware(), 'wechat_authorized');
+        $this->pushMiddleware($this->authorizedV3Middleware(), 'wechat_authorized');
+
+        $this->pushMiddleware($this->validateV3SignatureMiddleware(), 'validate_wechat_v3_signature');
 
         $this->pushMiddleware($this->logMiddleware(), 'log');
 
@@ -170,7 +173,7 @@ class BaseClient
      *
      * @return \Closure
      */
-    protected function AuthorizedV3Middleware()
+    protected function authorizedV3Middleware()
     {
         $timestamp = time();
 
@@ -186,6 +189,16 @@ class BaseClient
                 openssl_pkey_get_private('file://'.$this->app['config']['v3_key_path'])
             ),
         )));
+    }
+
+    /**
+     * Validate wechat V3 response Signature.
+     *
+     * @return \Closure
+     */
+    protected function validateV3SignatureMiddleware()
+    {
+        return Middleware::mapResponse(fn (ResponseInterface $response) => $this->validateWechatSignature($response));
     }
 
     /**

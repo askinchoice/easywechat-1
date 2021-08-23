@@ -14,6 +14,8 @@ namespace EasyWeChat\Tests\Kernel\Traits;
 use EasyWeChat\Kernel\ServiceContainer;
 use EasyWeChat\Kernel\Traits\InteractsWithV3Api;
 use EasyWeChat\Tests\TestCase;
+use EasyWechat\Kernel\Exceptions\InvalidArgumentException;
+use EasyWechat\Kernel\Exceptions\DecryptException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -96,12 +98,26 @@ class InteractsWithV3ApiTest extends TestCase
 
         $response = \Mockery::mock(ResponseInterface::class);
 
+        $response->expects()->getHeaderLine()->withAnyArgs()->times(3)->andReturn(null);
+
+        try {
+            $cls->validateWechatSignature($response);
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(InvalidArgumentException::class, $e);
+            $this->assertSame("The Response doesn't contains signature.", $e->getMessage());
+        }
+
         $response->expects()->getHeaderLine('Wechatpay-Signature')->andReturn(\base64_encode('signature'));
         $response->expects()->getHeaderLine('Wechatpay-Timestamp')->andReturn('1629414003');
         $response->expects()->getHeaderLine('Wechatpay-Nonce')->andReturn('nonceStr');
         $response->shouldReceive('getBody->getContents')->andReturn(json_encode(['foo' => 'bar']));
 
-        $this->assertFalse($cls->validateWechatSignature($response));
+        try {
+            $cls->validateWechatSignature($response);
+        } catch (\Exception $e) {
+            $this->assertInstanceOf(DecryptException::class, $e);
+            $this->assertSame('The given payload is invalid.', $e->getMessage());
+        }
     }
 }
 
