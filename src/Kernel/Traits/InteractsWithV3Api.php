@@ -11,6 +11,8 @@
 
 namespace EasyWeChat\Kernel\Traits;
 
+use EasyWeChat\Kernel\Support\AES;
+use EasyWeChat\Kernel\Exceptions\RuntimeException;
 use EasyWeChat\Kernel\Exceptions\DecryptException;
 use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
 use Psr\Http\Message\RequestInterface;
@@ -21,6 +23,8 @@ use Psr\Http\Message\ResponseInterface;
  */
 trait InteractsWithV3Api
 {
+    use HasHttpRequests;
+
     /**
      * Generate V3 API token.
      *
@@ -70,6 +74,41 @@ trait InteractsWithV3Api
     }
 
     /**
+     * Get V3 cert.
+     *
+     * @return string
+     *
+     * @throws RuntimeException
+     * @throws \GuzzleHttp\Exception\GuzzleException
+     */
+    protected function getV3Certificate()
+    {
+        if ($cert = $this->app['config']['v3_certificate'] ?? '') {
+            return $cert;
+        }
+
+        $resource = $this->castResponseToType($this->request('v3/certificates'))['encrypt_certificate'] ?? [];
+
+        if (!$cipherText = base64_decode($resource['ciphertext'], true)) {
+            throw new RuntimeException("Failed to request v3 certificate.");
+        }
+
+        $cert = AES::decrypt(
+            substr($cipherText, 0, -16),
+            $this->app['config']['v3_key'],
+            $resource['nonce'],
+            OPENSSL_RAW_DATA,
+            'aes-256-gcm',
+            substr($cipherText, -16),
+            $resource['associated_data']
+        );
+
+        $this->app['config']->set('v3_certificate', $cert);
+
+        return $cert;
+    }
+
+    /**
      * Validate V3 wechat signature.
      *
      * @param ResponseInterface $response
@@ -96,7 +135,7 @@ trait InteractsWithV3Api
         if (1 !== \openssl_verify(
             $content,
             \base64_decode($signature),
-            \openssl_pkey_get_public('file://'.$this->app['config']['v3_cert_path']) ?: '',
+            $this->getV3Certificate(),
             'sha256WithRSAEncryption'
         )) {
             throw new DecryptException('The given payload is invalid.');

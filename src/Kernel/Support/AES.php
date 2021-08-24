@@ -40,15 +40,17 @@ class AES
      * @param string      $iv
      * @param int         $option
      * @param string|null $method
+     * @param string|null $tag
+     * @param string|null $aad
      *
      * @return string
      */
-    public static function decrypt(string $cipherText, string $key, string $iv, int $option = OPENSSL_RAW_DATA, $method = null): string
+    public static function decrypt(string $cipherText, string $key, string $iv, int $option = OPENSSL_RAW_DATA, $method = null, $tag = null, $aad = null): string
     {
         self::validateKey($key);
         self::validateIv($iv);
 
-        return openssl_decrypt($cipherText, $method ?: self::getMode($key), $key, $option, $iv);
+        return openssl_decrypt($cipherText, $method ?: self::getMode($key), $key, $option, $iv, $tag, $aad);
     }
 
     /**
