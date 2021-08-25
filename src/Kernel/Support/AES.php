@@ -80,8 +80,8 @@ class AES
      */
     public static function validateIv(string $iv)
     {
-        if (!empty($iv) && 16 !== strlen($iv)) {
-            throw new \InvalidArgumentException('IV length must be 16 bytes.');
+        if (!empty($iv) && !in_array(strlen($iv), [12, 16], true)) {
+            throw new \InvalidArgumentException('IV length must be 12, 16 bytes.');
         }
     }
 }
