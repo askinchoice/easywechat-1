@@ -11,10 +11,10 @@
 
 namespace EasyWeChat\Kernel\Traits;
 
-use EasyWeChat\Kernel\Support\AES;
-use EasyWeChat\Kernel\Exceptions\RuntimeException;
 use EasyWeChat\Kernel\Exceptions\DecryptException;
 use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
+use EasyWeChat\Kernel\Support\Arr;
+use EasyWeChat\Kernel\Support\AES;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -23,8 +23,6 @@ use Psr\Http\Message\ResponseInterface;
  */
 trait InteractsWithV3Api
 {
-    use HasHttpRequests;
-
     /**
      * Generate V3 API token.
      *
@@ -74,24 +72,64 @@ trait InteractsWithV3Api
     }
 
     /**
-     * Get V3 cert.
+     * Validate V3 wechat signature.
+     *
+     * @param ResponseInterface $response
+     *
+     * @return ResponseInterface
+     *
+     * @throws InvalidArgumentException
+     * @throws DecryptException
+     */
+    public function validateWechatSignature(ResponseInterface $response)
+    {
+        $signature = $response->getHeaderLine('Wechatpay-Signature');
+        $timestamp = $response->getHeaderLine('Wechatpay-Timestamp');
+        $nonceStr = $response->getHeaderLine('Wechatpay-Nonce');
+        $serialNumber = $response->getHeaderLine('Wechatpay-Serial');
+
+        if (!$signature || !$timestamp || !$nonceStr || !$serialNumber) {
+            throw new InvalidArgumentException("The Response doesn't contains signature.");
+        }
+
+        $content = $timestamp."\n".
+            $nonceStr."\n".
+            $response->getBody()."\n";
+
+        if (1 !== \openssl_verify(
+            $content,
+            \base64_decode($signature),
+            $this->getV3Certificate($serialNumber),
+            'sha256WithRSAEncryption'
+        )) {
+            throw new DecryptException('The given payload is invalid.');
+        }
+
+        return $response;
+    }
+
+    /**
+     * Get a V3 cert.
+     *
+     * @param string $serialNumber
      *
      * @return string
      *
-     * @throws RuntimeException
-     * @throws \GuzzleHttp\Exception\GuzzleException
+     * @throws InvalidArgumentException
      */
-    protected function getV3Certificate()
+    public function getV3Certificate(string $serialNumber)
     {
         if ($cert = $this->app['config']['v3_certificate'] ?? '') {
             return $cert;
         }
 
-        $resource = $this->castResponseToType($this->request('v3/certificates'))['encrypt_certificate'] ?? [];
+        $data = $this->app['profit_sharing_v3']->requestV3Certificates()['data'];
 
-        if (!$cipherText = base64_decode($resource['ciphertext'], true)) {
-            throw new RuntimeException("Failed to request v3 certificate.");
+        if (!$resource = Arr::first($data, fn ($item) => $item['serial_no'] == $serialNumber)['encrypt_certificate'] ?? '') {
+            throw new InvalidArgumentException(sprintf('Can not find the serialNo %s', $serialNumber));
         }
+
+        $cipherText = base64_decode($resource['ciphertext'], true);
 
         $cert = AES::decrypt(
             substr($cipherText, 0, -16),
@@ -106,39 +144,5 @@ trait InteractsWithV3Api
         $this->app['config']->set('v3_certificate', $cert);
 
         return $cert;
-    }
-
-    /**
-     * Validate V3 wechat signature.
-     *
-     * @param ResponseInterface $response
-     *
-     * @throws InvalidArgumentException
-     * @throws DecryptException
-     */
-    public function validateWechatSignature(ResponseInterface $response)
-    {
-        $signature = $response->getHeaderLine('Wechatpay-Signature');
-        $timestamp = $response->getHeaderLine('Wechatpay-Timestamp');
-        $nonceStr = $response->getHeaderLine('Wechatpay-Nonce');
-
-        if (!isset($signature, $timestamp, $nonceStr)) {
-            throw new InvalidArgumentException(sprintf("The Response doesn't contains signature."));
-        }
-
-        $body = $response->getBody()->getContents();
-
-        $content = $timestamp."\n".
-            $nonceStr."\n".
-            $body;
-
-        if (1 !== \openssl_verify(
-            $content,
-            \base64_decode($signature),
-            $this->getV3Certificate(),
-            'sha256WithRSAEncryption'
-        )) {
-            throw new DecryptException('The given payload is invalid.');
-        }
     }
 }
