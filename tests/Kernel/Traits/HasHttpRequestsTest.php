@@ -113,6 +113,20 @@ class HasHttpRequestsTest extends TestCase
         $this->assertSame($handlerStack2, $cls->getHandlerStack());
     }
 
+    public function testGenerateHandlerStack()
+    {
+        $cls = \Mockery::mock(HasHttpRequests::class);
+        $fn1 = function () {
+        };
+        $cls->pushMiddleware($fn1, 'fn1');
+
+        $handlerStack = $cls->generateHandlerStack('fn1', 'fn2', 'fn3');
+        $this->assertInstanceOf(HandlerStack::class, $handlerStack);
+        $this->assertMatchesRegularExpression('/.*Name: \'fn1\', Function: callable.*/', (string) $handlerStack);
+        $this->assertFalse(str_contains((string) $handlerStack, 'fn2'));
+        $this->assertFalse(str_contains((string) $handlerStack, 'fn3'));
+    }
+
     public function testFixJsonIssue()
     {
         $cls = \Mockery::mock(DummnyClassForHasHttpRequestTest::class.'[getHandlerStack]');

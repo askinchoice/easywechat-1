@@ -145,7 +145,7 @@ trait HasHttpRequests
     {
         $method = strtoupper($method);
 
-        $options = array_merge(self::$defaults, $options, ['handler' => $this->getHandlerStack()]);
+        $options = array_merge(self::$defaults, ['handler' => $this->getHandlerStack()], $options);
 
         $options = $this->fixJsonIssue($options);
 
@@ -189,6 +189,24 @@ trait HasHttpRequests
         }
 
         return $this->handlerStack;
+    }
+
+    /**
+     * Generate a new handler stack that specify middlewares.
+     *
+     * @param string ...$middlewares
+     *
+     * @return \GuzzleHttp\HandlerStack
+     */
+    public function generateHandlerStack(string ...$middlewares): HandlerStack
+    {
+        $handler = HandlerStack::create($this->getGuzzleHandler());
+
+        foreach ($middlewares as $name) {
+            isset($this->middlewares[$name]) && $handler->push($this->middlewares[$name], $name);
+        }
+
+        return $handler;
     }
 
     /**
