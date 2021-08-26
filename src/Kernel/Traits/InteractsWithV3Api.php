@@ -191,6 +191,10 @@ trait InteractsWithV3Api
      */
     protected function validateV3SignatureMiddleware()
     {
-        return Middleware::mapResponse(fn (ResponseInterface $response) => $this->validateWechatSignature($response));
+        return Middleware::mapResponse(function (ResponseInterface $response) {
+            $code = $response->getStatusCode();
+
+            return ($code >= 200 && $code < 300) ? $this->validateWechatSignature($response) : $response;
+        });
     }
 }
