@@ -147,7 +147,7 @@ class InteractsWithV3ApiTest extends TestCase
         $app = new ServiceContainer([
             'v3_key' => 'apiv320210817qwertyuiopasdfghjkl',
         ], [
-            'profit_sharing_v3' => $client
+            'base' => $client
         ]);
 
         $cls = new DummyClassForInteractsWithV3ApiTest($app);

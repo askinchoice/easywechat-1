@@ -64,21 +64,4 @@ class Client extends BaseClient
             $params
         );
     }
-
-    /**
-     * Request V3 cert list.
-     * 获取平台证书列表
-     *
-     * @return array|\EasyWeChat\Kernel\Support\Collection|object|\Psr\Http\Message\ResponseInterface|string
-     *
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     */
-    public function requestV3Certificates()
-    {
-        return $this->castResponseToType($this->performRequest(
-            'https://api.mch.weixin.qq.com/v3/certificates',
-            'GET',
-            ['handler' => $this->generateHandlerStack('client_headers', 'wechat_authorized', 'log')]
-        ), $this->app->config->get('response_type'));
-    }
 }

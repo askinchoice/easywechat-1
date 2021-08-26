@@ -14,8 +14,6 @@ namespace EasyWeChat\Tests\Payment\ProfitSharingV3;
 use EasyWeChat\Payment\Application;
 use EasyWeChat\Payment\ProfitSharingV3\Client;
 use EasyWeChat\Tests\TestCase;
-use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\HandlerStack;
 
 class ClientTest extends TestCase
 {
@@ -72,26 +70,5 @@ class ClientTest extends TestCase
                 'description' => '分到个人',
             ]]
         ));
-    }
-
-    public function testRequestV3Certificates()
-    {
-        $client = $this->mockApiClient(
-            Client::class,
-            ['castResponseToType', 'performRequest', 'generateHandlerStack'],
-            $this->app()
-        );
-
-        $client->expects()->castResponseToType(ResponseInterface::class, null)->andReturn('mock-result');
-
-        $client->expects()->performRequest(
-            'https://api.mch.weixin.qq.com/v3/certificates',
-            'GET',
-            ['handler' => \Mockery::mock(HandlerStack::class)]
-        )->andReturn(\Mockery::mock(ResponseInterface::class));
-
-        $client->expects()->generateHandlerStack('client_headers', 'wechat_authorized', 'log')->andReturn(\Mockery::mock(HandlerStack::class));
-
-        $this->assertSame('mock-result', $client->requestV3Certificates());
     }
 }

@@ -123,7 +123,7 @@ trait InteractsWithV3Api
             return $cert;
         }
 
-        $data = $this->app['profit_sharing_v3']->requestV3Certificates()['data'];
+        $data = $this->app['base']->requestV3Certificates()['data'];
 
         if (!$resource = Arr::first($data, fn ($item) => $item['serial_no'] == $serialNumber)['encrypt_certificate'] ?? '') {
             throw new InvalidArgumentException(sprintf('Can not find the serialNo %s', $serialNumber));
