@@ -13,10 +13,10 @@ namespace EasyWeChat\Kernel\Traits;
 
 use EasyWeChat\Kernel\Exceptions\DecryptException;
 use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
-use EasyWeChat\Kernel\Support\Arr;
-use EasyWeChat\Kernel\Support\AES;
+use EasyWeChat\Kernel\Support;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Middleware;
 
 /**
  * Trait InteractsWithV3Api.
@@ -125,13 +125,13 @@ trait InteractsWithV3Api
 
         $data = $this->app['base']->requestV3Certificates()['data'];
 
-        if (!$resource = Arr::first($data, fn ($item) => $item['serial_no'] == $serialNumber)['encrypt_certificate'] ?? '') {
+        if (!$resource = Support\Arr::first($data, fn ($item) => $item['serial_no'] == $serialNumber)['encrypt_certificate'] ?? '') {
             throw new InvalidArgumentException(sprintf('Can not find the serialNo %s', $serialNumber));
         }
 
         $cipherText = base64_decode($resource['ciphertext'], true);
 
-        $cert = AES::decrypt(
+        $cert = Support\AES::decrypt(
             substr($cipherText, 0, -16),
             $this->app['config']['v3_key'],
             $resource['nonce'],
@@ -144,5 +144,53 @@ trait InteractsWithV3Api
         $this->app['config']->set('v3_certificate', $cert);
 
         return $cert;
+    }
+
+    /**
+     * Set client headers.
+     *
+     * @return \Closure
+     */
+    protected function setClientHeadersMiddleware()
+    {
+        return Middleware::mapRequest(
+            fn (RequestInterface $request) => $request
+            ->withHeader('Accept', 'application/json, text/plain, application/x-gzip')
+            ->withHeader('User-Agent', 'overtrue/wechat')
+            ->withHeader('Content-Type', 'application/json; charset=utf-8')
+        );
+    }
+
+    /**
+     * Authorize the request.
+     *
+     * @return \Closure
+     */
+    protected function authorizedV3Middleware()
+    {
+        $timestamp = time();
+
+        $nonceStr = uniqid();
+
+        return Middleware::mapRequest(fn (RequestInterface $request) => $request->withHeader('Authorization', $this->generateToken(
+            $this->app['config']['mch_id'],
+            $nonceStr,
+            $timestamp,
+            $this->app['config']['serial_no'],
+            Support\sha256_rsa_with_private_encrypt(
+                $this->getContents($request, $timestamp, $nonceStr),
+                openssl_pkey_get_private('file://'.$this->app['config']['v3_key_path'])
+            ),
+        )));
+    }
+
+    /**
+     * Validate wechat V3 response Signature.
+     *
+     * @return \Closure
+     */
+    protected function validateV3SignatureMiddleware()
+    {
+        return Middleware::mapResponse(fn (ResponseInterface $response) => $this->validateWechatSignature($response));
     }
 }

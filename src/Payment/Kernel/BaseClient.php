@@ -18,7 +18,6 @@ use EasyWeChat\Payment\Application;
 use GuzzleHttp\MessageFormatter;
 use GuzzleHttp\Middleware;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\RequestInterface;
 
 /**
  * Class BaseClient.
@@ -128,7 +127,7 @@ class BaseClient
             'json' => $params,
         ], $options);
 
-        $this->pushMiddleware($this->setClientHeaders(), 'client_headers');
+        $this->pushMiddleware($this->setClientHeadersMiddleware(), 'client_headers');
 
         $this->pushMiddleware($this->authorizedV3Middleware(), 'wechat_authorized');
 
@@ -151,54 +150,6 @@ class BaseClient
         $formatter = new MessageFormatter($this->app['config']['http.log_template'] ?? MessageFormatter::DEBUG);
 
         return Middleware::log($this->app['logger'], $formatter);
-    }
-
-    /**
-     * Set client headers.
-     *
-     * @return \Closure
-     */
-    protected function setClientHeaders()
-    {
-        return Middleware::mapRequest(
-            fn (RequestInterface $request) => $request
-            ->withHeader('Accept', 'application/json, text/plain, application/x-gzip')
-            ->withHeader('User-Agent', 'overtrue/wechat')
-            ->withHeader('Content-Type', 'application/json; charset=utf-8')
-        );
-    }
-
-    /**
-     * Authorize the request.
-     *
-     * @return \Closure
-     */
-    protected function authorizedV3Middleware()
-    {
-        $timestamp = time();
-
-        $nonceStr = uniqid();
-
-        return Middleware::mapRequest(fn (RequestInterface $request) => $request->withHeader('Authorization', $this->generateToken(
-            $this->app['config']['mch_id'],
-            $nonceStr,
-            $timestamp,
-            $this->app['config']['serial_no'],
-            Support\sha256_rsa_with_private_encrypt(
-                $this->getContents($request, $timestamp, $nonceStr),
-                openssl_pkey_get_private('file://'.$this->app['config']['v3_key_path'])
-            ),
-        )));
-    }
-
-    /**
-     * Validate wechat V3 response Signature.
-     *
-     * @return \Closure
-     */
-    protected function validateV3SignatureMiddleware()
-    {
-        return Middleware::mapResponse(fn (ResponseInterface $response) => $this->validateWechatSignature($response));
     }
 
     /**

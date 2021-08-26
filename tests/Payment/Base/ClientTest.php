@@ -54,9 +54,21 @@ class ClientTest extends TestCase
 
         $client = $this->mockApiClient(
             Client::class,
-            ['castResponseToType', 'performRequest', 'generateHandlerStack'],
+            ['castResponseToType', 'performRequest', 'generateHandlerStack', 'pushMiddleware', 'setClientHeadersMiddleware', 'authorizedV3Middleware', 'logMiddleware'],
             $app
         );
+
+        $client->expects()->pushMiddleware(\Closure::class, 'client_headers');
+
+        $client->expects()->pushMiddleware(\Closure::class, 'wechat_authorized');
+
+        $client->expects()->pushMiddleware(\Closure::class, 'log');
+
+        $client->expects()->setClientHeadersMiddleware()->andReturn(fn () => '');
+
+        $client->expects()->authorizedV3Middleware()->andReturn(fn () => '');
+
+        $client->expects()->logMiddleware()->andReturn(fn () => '');
 
         $client->expects()->castResponseToType(ResponseInterface::class, null)->andReturn('mock-result');
 

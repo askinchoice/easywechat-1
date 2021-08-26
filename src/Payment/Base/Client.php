@@ -62,6 +62,14 @@ class Client extends BaseClient
      */
     public function requestV3Certificates()
     {
+        $middlewares = $this->getMiddlewares();
+
+        empty($middlewares['client_headers']) && $this->pushMiddleware($this->setClientHeadersMiddleware(), 'client_headers');
+
+        empty($middlewares['wechat_authorized']) && $this->pushMiddleware($this->authorizedV3Middleware(), 'wechat_authorized');
+
+        empty($middlewares['log']) && $this->pushMiddleware($this->logMiddleware(), 'log');
+
         return $this->castResponseToType($this->performRequest(
             'https://api.mch.weixin.qq.com/v3/certificates',
             'GET',
