@@ -79,7 +79,7 @@ class BaseClient
             'sub_appid' => $this->app['config']['sub_appid'],
         ];
 
-        $params = array_filter(array_merge($base, $this->prepends(), $params), 'strlen');
+        $params = array_filter(array_filter(array_merge($base, $this->prepends(), $params)), 'strlen');
 
         $secretKey = $this->app->getKey($endpoint);
 

@@ -116,7 +116,8 @@ class Client extends BaseClient
         string $corpName = '',
         string $adminName = '',
         string $adminMobile = '',
-        string $state = ''
+        string $state = '',
+        string $templateId = ''
     ) {
         $params = [];
         $params['template_id'] = $this->app['config']['reg_template_id'];
@@ -124,6 +125,7 @@ class Client extends BaseClient
         !empty($adminName) && $params['admin_name'] = $adminName;
         !empty($adminMobile) && $params['admin_mobile'] = $adminMobile;
         !empty($state) && $params['state'] = $state;
+        !empty($templateId) && $params['template_id'] = $templateId;
 
         return $this->httpPostJson('cgi-bin/service/get_register_code', $params);
     }
@@ -238,5 +240,20 @@ class Client extends BaseClient
         !empty($fullMatchField) && $params['full_match_field'] = $fullMatchField;
 
         return $this->httpPostJson('cgi-bin/service/contact/search', $params);
+    }
+
+    /**
+     * 自建应用代开发获取带参授权链接
+     *
+     * @see https://developer.work.weixin.qq.com/document/path/95436
+     *
+     * @param array $params 请求参数
+     *
+     * @return array|\EasyWeChat\Kernel\Support\Collection|object|\Psr\Http\Message\ResponseInterface|string
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
+     */
+    public function getCustomizedAuthUrl(array $params)
+    {
+        return $this->httpPostJson('cgi-bin/service/get_customized_auth_url', $params);
     }
 }
